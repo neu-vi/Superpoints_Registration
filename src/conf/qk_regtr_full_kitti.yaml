@@ -1,0 +1,146 @@
+general:
+    expt_name: qk_regtr_full_kitti_dual_norm
+
+dataset:
+    dataset: kitti
+    root: /work/nufr/aniket/Datasets/KITTI_ODOM
+    validation_seq: "01"
+    augment_noise: 0.01
+    perturb_pose: large
+    train_batch_size: 1
+    val_batch_size: 1
+    test_batch_size: 1
+    downsample: True
+    alpha: 0.5
+    beta: 1.5
+    crop_radius: 0.0
+    remove_ground: False
+
+train_options:
+    niter: -150  # 400 epochs
+
+solver:
+    optimizer: AdamW
+    base_lr: 0.0001
+    weight_decay: 0.0001
+    grad_clip: 0.1
+    scheduler: 'step'
+    scheduler_param: [135800, 0.5] # Decay by 0.5 every 10 epochs
+
+
+# Use a shallower backbone to maintain resolution
+kpconv_options:
+    num_layers: 4
+    neighborhood_limits: [39, 57, 68, 74]
+    aggregation_mode: sum
+    first_subsampling_dl: 0.2  # Set smaller to have a higher resolution
+    first_feats_dim: 128
+    fixed_kernel_points: center
+    in_feats_dim: 1
+    in_points_dim: 3
+    conv_radius: 4.25
+    deform_radius: 5.0
+    KP_extent: 2.0
+    KP_influence: linear
+    overlap_radius: 0.3 ## ===
+    use_batch_norm: True
+    batch_norm_momentum: 0.02
+    modulated: False
+    num_kernel_points: 15
+    architecture: ['simple',
+                    'resnetb',
+                    'resnetb_strided',
+                    'resnetb',
+                    'resnetb',
+                    'resnetb_strided',
+                    'resnetb',
+                    'resnetb',
+                    'resnetb_strided',
+                    'resnetb',
+                    'resnetb']
+
+    # Network can be made a little larger.
+
+lgr:
+    use_lgr: False
+    num_refinement_steps: 10
+    acceptance_radius: 0.6
+
+ransac:
+    use_ransac: False
+
+model:
+    model: qk_regtr_full.RegTR
+    
+    remove_points_from_val: False
+    val_threshold: 0.25
+
+    # Threshold Correlation values
+    threshold_corr: False
+    corr_threshold: 0.1
+
+    # Use Overlap values to remove outliers
+    remove_outliers_overlap: False
+    overlap_threshold: 0.5
+    use_overlap_as_weights: False
+
+    # Lowe's ratio test
+    use_ratio_test: False
+    lowe_thres: 0.9
+
+    # Sinkhorn
+    use_sinkhorn: False
+    sinkhorn_itr: 3
+    slack: True
+    use_attn_affinity: False
+    use_corr_affinity: False
+
+    # Transformer
+    attention_type: dot_prod
+    nhead: 8
+    d_embed: 256
+    d_feedforward: 1024
+    dropout: 0.0  # dropout not compatible
+    pre_norm: True
+    transformer_act: relu
+
+    # Transformer encoder
+    num_encoder_layers: 6
+    transformer_encoder_has_pos_emb: True
+    sa_val_has_pos_emb: True
+    ca_val_has_pos_emb: True
+    pos_emb_type: sine  # either 'sine' or 'learned'
+
+    # Correspondence decoding
+    corr_decoder_has_pos_emb: True
+    direct_regress_coor: True  # Whether to regress coordinates using MLP (True) or a final attention layer (False)
+
+
+losses:
+    inlier_loss_on: False
+    # Overlap loss
+    wt_overlap: 1.0
+    overlap_loss_pyr: 3
+    overlap_loss_on: [5]  # Apply loss on only final output
+
+    # Feature loss - I use the following thresholds
+    # Voxel sizes at different octaves: (0) 0.3 (1) 0.6 (2) 1.2 (3) 2.4  
+    # Voxel sizes at different octaves: (0) 0.2 (1) 0.4 (2) 0.8 (3) 1.6  
+    # Voxel sizes at different octaves: (0) 0.1 (1) 0.2 (2) 0.4 (3) 0.8  
+    # r_p and r_n are set to 1x and 2.0x the voxel sizes respectively
+    wt_feature: 0.1
+    wt_feature_un: 0.0
+    r_p: 1.6
+    r_n: 3.2
+    feature_loss_on: [0]
+    feature_loss_type: infonce
+
+    # Correspondence loss
+    wt_corr: 1.0
+    corr_loss_on: [5]
+
+
+validation:
+    # Registration success criteria. We use this to pick the best checkpoint
+    reg_success_thresh_rot: 5
+    reg_success_thresh_trans: 2
